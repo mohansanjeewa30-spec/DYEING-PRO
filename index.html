@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garment Dyeing Production Management System - Live</title>
+    
+    <!-- Tailwind CSS & Icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Sinhala:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- SheetJS for Excel Reading -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Tesseract.js for Mobile Camera OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+
+    <!-- Firebase App & Realtime Database CDN SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Noto Sans Sinhala', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        /* Mobile-first layout fixes: prevent menu/header overflow on phones */
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { max-width: 100%; overflow-x: hidden; }
+        input, select, textarea, button { max-width: 100%; }
+        @media (max-width: 640px) {
+            header .max-w-7xl { padding-left: 12px; padding-right: 12px; }
+            header h1 { font-size: 15px; flex-wrap: wrap; line-height: 1.25; }
+            header .text-\[11px\] { font-size: 10px; }
+            header #userRoleLabel { max-width: 44vw; overflow-wrap: anywhere; text-align: right; }
+            header #signOutBtn { padding: 8px 10px; font-size: 11px; }
+            main { padding-left: 12px !important; padding-right: 12px !important; padding-top: 14px !important; }
+            main > section:first-child { padding: 12px !important; }
+            main > section:first-child .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            main > section:first-child button { min-width: 0; min-height: 74px; padding: 10px 7px; font-size: 11px; line-height: 1.3; overflow-wrap: anywhere; }
+            main > section:first-child button span { min-width: 0; }
+            main > section:first-child .admin-only label { width: 100%; }
+            .glass-card { min-width: 0; }
+            #staffAdminPanel { padding-left: 12px; padding-right: 12px; }
+            #staffAdminPanel > .glass-card { padding: 14px !important; }
+            #staffRolesList { overflow-wrap: anywhere; }
+            #tabSearchContent > .glass-card, #tabIssuesContent, #tabFilesContent { padding: 14px !important; }
+            #tabSearchContent .flex.flex-col.sm\:flex-row { gap: 8px; }
+            #searchInput { min-width: 0; }
+            #tabSearchContent button, #tabDefectsContent button { min-height: 44px; }
+        }
+        @media (min-width: 641px) {
+            main > section:first-child .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased selection:bg-blue-500 selection:text-white">
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-40 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                        <i class="fa-solid fa-flask"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-lg text-white tracking-tight flex items-center gap-2">
+                            DYEING PRO <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/25">v3.5 Live</span>
+                        </h1>
+                        <p class="text-[11px] text-slate-400">Garment Dye Plan & Live Batch Sync</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 text-xs">
+                    <span id="userRoleLabel" class="text-slate-300">Not signed in</span>
+                    <button id="signOutBtn" onclick="signOutUser()" class="hidden bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg font-bold">Sign out</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Authentication gate -->
+    <div id="loginGate" class="fixed inset-0 z-[100] bg-slate-950 flex items-center justify-center p-4">
+      <form onsubmit="signInUser(event)" class="glass-card w-full max-w-md rounded-2xl p-6 space-y-4">
+        <div class="text-center"><div class="text-blue-400 text-3xl mb-2"><i class="fa-solid fa-shield-halved"></i></div><h2 class="text-xl font-extrabold">DYEING PRO Login</h2><p class="text-slate-400 text-sm mt-1">Sign in with your authorized account</p></div>
+        <div><label class="text-xs text-slate-300 block mb-1">Email</label><input id="loginEmail" type="email" autocomplete="username" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white"></div>
+        <div><label class="text-xs text-slate-300 block mb-1">Password</label><input id="loginPassword" type="password" autocomplete="current-password" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white"></div>
+        <button id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-500 rounded-xl p-3 font-bold" type="submit">Sign in</button>
+        <p id="loginMessage" class="text-sm text-rose-300" role="status"></p>
+      </form>
+    </div>
+
+    <!-- Admin-only staff role assignment: staff accounts must first exist in Firebase Authentication -->
+    <div id="staffAdminPanel" class="hidden max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4">
+      <div class="glass-card rounded-2xl p-4 space-y-3">
+        <h3 class="font-bold">Staff access management</h3>
+        <p class="text-xs text-slate-400">Create staff accounts first in Firebase Authentication, then enter each staff user's UID below. Never share your Admin account.</p>
+        <div class="flex flex-col sm:flex-row gap-2"><input id="staffUidInput" placeholder="Staff Firebase Auth UID" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm"><button onclick="assignStaffRole()" class="bg-indigo-600 px-4 py-3 rounded-xl text-sm font-bold">Authorize Staff UID</button></div>
+        <div id="staffRolesList" class="text-xs text-slate-300"></div>
+      </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Organized Main Navigation -->
+        <section class="glass-card rounded-2xl p-4 space-y-3 shadow-xl">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                    <h2 class="text-white font-extrabold text-base">වැඩ කොටස තෝරන්න</h2>
+                    <p class="text-slate-400 text-xs mt-1">පළමුව Batch එක සොයන්න. පසුව Defect Update, ගැටලු ලැයිස්තුව හෝ Excel බලන්න.</p>
+                </div>
+                <div class="admin-only">
+                    <label for="excelFileInput" class="cursor-pointer bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition inline-flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-file-arrow-up"></i><span>Excel Upload</span>
+                    </label>
+                    <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                <button onclick="switchTab('search')" id="tabBtnSearch" class="min-h-[68px] px-3 py-3 rounded-xl font-bold text-sm transition flex flex-col sm:flex-row items-center justify-center gap-2 bg-blue-600 text-white shadow-md">
+                    <i class="fa-solid fa-magnifying-glass text-lg"></i><span>1. Batch Search & Comments</span>
+                </button>
+                <button onclick="switchTab('defects')" id="tabBtnDefects" class="min-h-[68px] px-3 py-3 rounded-xl font-bold text-sm transition flex flex-col sm:flex-row items-center justify-center gap-2 text-slate-300 bg-slate-900/70 hover:bg-slate-800">
+                    <i class="fa-solid fa-list-check text-lg text-rose-300"></i><span>2. Defect Update</span>
+                </button>
+                <button onclick="switchTab('issues')" id="tabBtnIssues" class="min-h-[68px] px-3 py-3 rounded-xl font-bold text-sm transition flex flex-col sm:flex-row items-center justify-center gap-2 text-slate-300 bg-slate-900/70 hover:bg-slate-800">
+                    <i class="fa-solid fa-triangle-exclamation text-lg text-amber-400"></i><span>3. Issue Batches (<span id="issueCountBadge">0</span>)</span>
+                </button>
+                <button onclick="switchTab('files')" id="tabBtnFiles" class="min-h-[68px] px-3 py-3 rounded-xl font-bold text-sm transition flex flex-col sm:flex-row items-center justify-center gap-2 text-slate-300 bg-slate-900/70 hover:bg-slate-800">
+                    <i class="fa-solid fa-file-excel text-lg text-emerald-400"></i><span>4. Excel Files</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- TAB 1: SEARCH & BATCH VIEW -->
+        <div id="tabSearchContent" class="space-y-6">
+            <div class="glass-card rounded-2xl p-6 shadow-xl space-y-3">
+                <label class="block text-xs uppercase tracking-wider font-bold text-slate-400">
+                    <i class="fa-solid fa-barcode text-blue-400 mr-1.5"></i> Batch Search — බැච් අංකය සොයන්න:
+                </label>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <div class="relative flex-1">
+                        <input type="text" id="searchInput" oninput="handleSearchInput(this.value, true)" onkeydown="if(event.key==='Enter'){searchBatchManually();}" placeholder="Batch Number type කරන්න (උදා: 13255082)" autocomplete="off" class="w-full pl-11 pr-4 py-3.5 bg-slate-900/90 rounded-xl border border-slate-700/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-white placeholder-slate-500 text-sm font-medium transition shadow-inner">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-base"></i>
+                    </div>
+                    <button onclick="searchBatchManually()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-3.5 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg">
+                        <i class="fa-solid fa-magnifying-glass"></i><span>Search Batch</span>
+                    </button>
+                    <button onclick="openOcrModal()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold px-5 py-3.5 rounded-xl text-xs transition border border-slate-700 flex items-center justify-center space-x-2 shadow-lg">
+                        <i class="fa-solid fa-camera text-base"></i>
+                        <span>OCR Camera Scan</span>
+                    </button>
+                </div>
+                <p id="batchSearchMessage" class="text-xs text-slate-400" role="status" aria-live="polite">Batch අංකය type කර Search Batch ඔබන්න, නැත්නම් OCR Camera Scan භාවිතා කරන්න.</p>
+            </div>
+
+            <!-- Batch Details Section -->
+            <div id="batchDetailDisplay" class="hidden space-y-6">
+                <div class="glass-card rounded-2xl p-6 shadow-2xl relative overflow-hidden border-blue-500/20">
+                    <div class="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-800">
+                        <div>
+                            <span class="text-[10px] uppercase font-extrabold text-blue-400 tracking-wider">SELECTED BATCH DETAILS</span>
+                            <h2 class="text-3xl font-extrabold text-white mt-0.5 tracking-tight" id="cardBatchNo">--</h2>
+                        </div>
+                        <button onclick="deleteCurrentBatch()" class="admin-only bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-trash-can"></i>
+                            <span>Delete This Batch</span>
+                        </button>
+                    </div>
+
+                    <!-- Highlight Metrics -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 mt-5">
+                        <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
+                            <span class="text-[10px] font-bold text-slate-400 block uppercase mb-1">COLOUR</span>
+                            <p class="font-extrabold text-sm text-slate-100 truncate" id="cardColour">--</p>
+                        </div>
+                        <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
+                            <span class="text-[10px] font-bold text-slate-400 block uppercase mb-1">FABRIC CODE</span>
+                            <p class="font-extrabold text-sm text-slate-100 truncate" id="cardFabric">--</p>
+                        </div>
+                        <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
+                            <span class="text-[10px] font-bold text-slate-400 block uppercase mb-1">WGT (WEIGHT)</span>
+                            <p class="font-extrabold text-sm text-emerald-400 truncate" id="cardWeight">--</p>
+                        </div>
+                        <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
+                            <span class="text-[10px] font-bold text-slate-400 block uppercase mb-1">STS (STATUS)</span>
+                            <p class="font-extrabold text-sm text-blue-400 truncate" id="cardStatus">--</p>
+                        </div>
+                        <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
+                            <span class="text-[10px] font-bold text-slate-400 block uppercase mb-1">PLAN EDT</span>
+                            <p class="font-extrabold text-sm text-slate-100 truncate" id="cardPlanDate">--</p>
+                        </div>
+                        <div class="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800/80">
+                            <span class="text-[10px] font-bold text-slate-400 block uppercase mb-1">STYLE</span>
+                            <p class="font-extrabold text-sm text-slate-100 truncate" id="cardStyle">--</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- All Columns -->
+                <div class="glass-card rounded-2xl p-6 shadow-2xl space-y-3">
+                    <h3 class="font-bold text-white text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-2">All Column Details</h3>
+                    <div id="allRawColumnsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs pt-1"></div>
+                </div>
+
+                <!-- Comments Section -->
+                <div class="glass-card rounded-2xl p-6 shadow-2xl space-y-5">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                        <h3 class="font-bold text-white text-base flex items-center gap-2">
+                            <i class="fa-solid fa-comments text-blue-400"></i> Sequential Batch Comments & Issue Tags
+                        </h3>
+                        <button onclick="openCommentsInNewWindow()" class="bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 px-3.5 py-1.5 rounded-xl text-xs font-bold transition">
+                            ↗️ Open in New Window
+                        </button>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label for="commentAreaSelect" class="block text-xs font-bold text-slate-400 mb-1">1. Area එක තෝරන්න *</label>
+                                <select id="commentAreaSelect" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white">
+                                    <option value="">Area එක තෝරන්න</option>
+                                    <option>After Preseting</option><option>Preseting</option><option>After Presenting</option>
+                                    <option>Dye Maching</option><option>Dryer</option><option>Sorting</option><option>After Sorting</option>
+                                    <option>QA In</option><option>QA Retrun</option>
+                                </select>
+                            </div>
+                            <div class="order-4">
+                                <label for="comment4MSelect" class="block text-xs font-bold text-slate-400 mb-1">2. 4M Issue වර්ගය *</label>
+                                <select id="comment4MSelect" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white">
+                                    <option value="">4M වර්ගය තෝරන්න</option><option>Man</option><option>Machine</option><option>Method</option><option>Material</option>
+                                </select>
+                            </div>
+                            <div class="order-2">
+                                <label for="commentPersonName" class="block text-xs font-bold text-slate-400 mb-1">3. Comment දාන පුද්ගලයාගේ නම *</label>
+                                <input id="commentPersonName" required autocomplete="name" placeholder="නම ඇතුළත් කරන්න" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white">
+                            </div>
+                            <div class="order-3">
+                                <label for="commentEpfNo" class="block text-xs font-bold text-slate-400 mb-1">4. EPF අංකය *</label>
+                                <input id="commentEpfNo" required inputmode="numeric" placeholder="EPF No ඇතුළත් කරන්න" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label for="commentIssueSelect" class="block text-xs font-bold text-slate-400 mb-1">5. Issue / Defect එක තෝරන්න *</label>
+                                <select id="commentIssueSelect" required onchange="toggleOtherCommentIssue()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white">
+                                    <option value="">Area සහ 4M තෝරා පසුව Issue එක තෝරන්න</option>
+                                    <option>Dye Patch</option><option>Shade Out</option><option>Snagging</option><option>Dye Dot</option>
+                                    <option>Crush Mark</option><option>Burn Mark</option><option>Preseting Mark</option><option>Folding Mark</option>
+                                    <option>Softner Mark</option><option>Shade Variation</option><option>Unleval</option><option>Body Sleeve Component Mismatch</option>
+                                    <option>PCS Less</option><option>Measurement Issue</option><option>Side Dye Patch</option><option>Bursting Fail</option><option>Testing Fail</option>
+                                    <option value="Other">වෙනත් Issue එකක්</option>
+                                </select>
+                                <input id="commentOtherIssue" class="hidden mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white" placeholder="වෙනත් Issue එකේ නම ලියන්න / Voice Typing කරන්න">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="commentInput" class="block text-xs font-bold text-slate-400 mb-1">6. Comment / ගත් ක්‍රියාමාර්ගය *</label>
+                            <textarea id="commentInput" rows="3" placeholder="Comment එක ටයිප් කරන්න හෝ Voice Typing භාවිතා කරන්න..." class="w-full bg-slate-900/90 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none"></textarea>
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                <button type="button" onclick="startVoiceInput('commentInput')" class="bg-violet-700 hover:bg-violet-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs"><i class="fa-solid fa-microphone mr-1"></i> Voice Typing</button>
+                                <button type="button" onclick="openOcrForField('commentInput')" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs"><i class="fa-solid fa-camera mr-1"></i> Scan Text</button>
+                                <button type="button" onclick="submitComment()" class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-lg">Save Comment</button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2" aria-label="Quick comments">
+                            <button type="button" onclick="setQuickComment('Shade variation පරීක්ෂා කරමින් පවතී.')" class="bg-slate-800 border border-slate-700 px-3 py-2 rounded-lg text-xs">Shade පරීක්ෂා කරනවා</button>
+                            <button type="button" onclick="setQuickComment('Reprocess සඳහා යොමු කළා.')" class="bg-slate-800 border border-slate-700 px-3 py-2 rounded-lg text-xs">Reprocess කළා</button>
+                            <button type="button" onclick="setQuickComment('QC පරීක්ෂාවට යොමු කළා.')" class="bg-slate-800 border border-slate-700 px-3 py-2 rounded-lg text-xs">QC පරීක්ෂාව</button>
+                            <button type="button" onclick="setQuickComment('ගැටලුව විසඳා නැවත පරීක්ෂා කළා. OK.')" class="bg-slate-800 border border-slate-700 px-3 py-2 rounded-lg text-xs">විසඳා OK</button>
+                            <button type="button" onclick="setQuickComment('තවම විසඳා නැහැ. තවදුරටත් ක්‍රියාමාර්ග අවශ්‍යයි.')" class="bg-slate-800 border border-slate-700 px-3 py-2 rounded-lg text-xs">තවම Pending</button>
+                        </div>
+                        <p id="voiceStatus" class="text-xs text-slate-400" role="status" aria-live="polite"></p>
+                    </div>
+
+                    <div id="commentsTimeline" class="space-y-2.5 pt-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: ISSUE BATCHES FILTER -->
+        <div id="tabIssuesContent" class="hidden glass-card rounded-2xl p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-white text-base">⚠️ ගැටලු ඇති Batch ලැයිස්තුව</h3>
+                <span id="issueFilterTotal" class="text-xs text-slate-400">Total Issues: 0</span>
+            </div>
+            <div id="issueBatchesGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+        </div>
+
+        <!-- TAB 3: EXCEL FILES MANAGER -->
+        <div id="tabFilesContent" class="hidden glass-card rounded-2xl p-6 shadow-2xl space-y-4">
+            <h3 class="font-bold text-white text-base border-b border-slate-800 pb-3">📁 Excel ගොනු කළමනාකරණය</h3>
+            <div id="filesListContainer" class="space-y-3"></div>
+        </div>
+
+        <!-- TAB 4: AREA-WISE DEFECT TRACKER -->
+        <div id="tabDefectsContent" class="hidden space-y-5">
+            <section class="glass-card rounded-2xl p-5 space-y-4">
+                <div class="border-b border-slate-800 pb-3">
+                    <h3 class="font-bold text-white text-base">Defect Update ඇතුළත් කිරීම</h3>
+                    <p class="text-xs text-slate-400 mt-1">Batch එකට අදාළ ගැටලුව, ක්‍රියාමාර්ග සහ විසඳුම සටහන් කරන්න.</p>
+                </div>
+                <form id="defectEntryForm" onsubmit="saveDefectRecord(event)" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div><label class="block text-xs text-slate-300 mb-1">Batch Number *</label><input id="defectBatchNo" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white" placeholder="Batch Number"></div>
+                    <div><label class="block text-xs text-slate-300 mb-1">දිනය *</label><input id="defectDate" type="date" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white"></div>
+                    <div><label class="block text-xs text-slate-300 mb-1">Area *</label><select id="defectArea" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white"><option value="">Area තෝරන්න</option><option>1. After Preseting</option><option>2. Preseting</option><option>3. After Presenting</option><option>4. Dye Maching</option><option>5. Dryer</option><option>6. Sorting</option><option>7. After Sorting</option><option>8. QA In</option><option>9. QA Retrun</option></select></div>
+                    <div class="md:col-span-2"><label class="block text-xs text-slate-300 mb-1">Defect වර්ගය *</label><select id="defectType" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white"><option value="">Defect එක තෝරන්න</option><option>Dye Patch</option><option>Shade Out</option><option>Snagging</option><option>Dye Dot</option><option>Crush Mark</option><option>Burn Mark</option><option>Preseting Mark</option><option>Folding Mark</option><option>Softner Mark</option><option>Shade Variation</option><option>Unleval</option><option>Body / Sleeve Component Mismatch</option><option>PCS Less</option><option>Measurement Issue</option><option>Side Dye Patch</option><option>Bursting Fail</option><option>Testing Fail</option></select></div>
+                    <div><label class="block text-xs text-slate-300 mb-1">Issue Category (4M)</label><select id="defectCategory" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white"><option value="">පසුව තෝරන්න</option><option>Man</option><option>Machine</option><option>Method</option><option>Material</option></select><p class="text-xs text-slate-500 mt-1">Man / Machine / Method / Material විස්තර පසුව එකතු කළ හැකියි.</p></div>
+                    <div class="md:col-span-2"><label class="block text-xs text-slate-300 mb-1">ගැටලුවේ විස්තරය *</label><textarea id="defectDescription" required rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white" placeholder="කෙටි විස්තරයක් හෝ Voice Typing"></textarea><div class="flex flex-wrap gap-2 mt-2"><button type="button" onclick="setDefectDescription('Batch එකේ shade වෙනසක් දක්නට ලැබුණා.')" class="bg-slate-800 px-3 py-2 rounded-lg text-xs">Shade වෙනසක්</button><button type="button" onclick="setDefectDescription('රෙදි මත stain / spot දක්නට ලැබුණා.')" class="bg-slate-800 px-3 py-2 rounded-lg text-xs">Stain / Spot</button><button type="button" onclick="setDefectDescription('QC පරීක්ෂාවේදී ගැටලුව හඳුනාගත්තා.')" class="bg-slate-800 px-3 py-2 rounded-lg text-xs">QC හඳුනාගත්තා</button><button type="button" onclick="startVoiceInput('defectDescription')" class="bg-violet-700 px-3 py-2 rounded-lg text-xs"><i class="fa-solid fa-microphone mr-1"></i> කතා කරලා ලියන්න</button></div></div>
+                    <div class="md:col-span-2"><label class="block text-xs text-slate-300 mb-1">ගත් ක්‍රියාමාර්ග / විසඳුම</label><textarea id="defectAction" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white" placeholder="කළ නිවැරදි කිරීම සහ ප්‍රතිඵලය"></textarea><div class="flex flex-wrap gap-2 mt-2"><button type="button" onclick="setDefectAction('Reprocess සඳහා යොමු කළා.')" class="bg-slate-800 px-3 py-2 rounded-lg text-xs">Reprocess</button><button type="button" onclick="setDefectAction('QC පරීක්ෂාවට යොමු කළා.')" class="bg-slate-800 px-3 py-2 rounded-lg text-xs">QC Check</button><button type="button" onclick="setDefectAction('ගැටලුව විසඳා නැවත පරීක්ෂා කළා. OK.')" class="bg-slate-800 px-3 py-2 rounded-lg text-xs">Resolved / OK</button><button type="button" onclick="startVoiceInput('defectAction')" class="bg-violet-700 px-3 py-2 rounded-lg text-xs"><i class="fa-solid fa-microphone mr-1"></i> කතා කරලා ලියන්න</button></div></div>
+                    <div><label class="block text-xs text-slate-300 mb-1">ක්‍රියාමාර්ග ගත් පුද්ගලයාගේ නම *</label><input id="actionPersonName" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white" placeholder="නම"></div>
+                    <div><label class="block text-xs text-slate-300 mb-1">EPF අංකය *</label><input id="actionPersonEpf" required inputmode="numeric" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white" placeholder="EPF No."></div>
+                    <div><label class="block text-xs text-slate-300 mb-1">තත්ත්වය</label><select id="defectStatus" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white"><option>Pending</option><option>In Progress</option><option>Resolved</option></select></div>
+                    <div class="flex items-end"><button type="submit" class="w-full bg-rose-600 hover:bg-rose-500 rounded-xl p-3 font-bold text-sm">Save Defect Record</button></div>
+                    <p id="defectSaveMessage" class="md:col-span-2 text-xs text-slate-300" role="status" aria-live="polite"></p>
+                </form>
+            </section>
+            <section class="glass-card rounded-2xl p-5 space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-800 pb-3">
+                    <div><h3 class="font-bold text-white">Defect Records & Daily Updates</h3><p id="defectRecordCount" class="text-xs text-slate-400 mt-1">Records: 0</p></div>
+                    <button onclick="exportDefectsExcel()" class="bg-emerald-600 hover:bg-emerald-500 rounded-xl px-4 py-2.5 text-xs font-bold"><i class="fa-solid fa-file-excel mr-1"></i> Export Excel</button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                    <input id="filterDefectBatch" oninput="renderDefectRecords()" placeholder="Batch Number" class="bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    <select id="filterDefectArea" onchange="renderDefectRecords()" class="bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white"><option value="">සියලු Area</option><option>1. After Preseting</option><option>2. Preseting</option><option>3. After Presenting</option><option>4. Dye Maching</option><option>5. Dryer</option><option>6. Sorting</option><option>7. After Sorting</option><option>8. QA In</option><option>9. QA Retrun</option></select>
+                    <input id="filterDefectType" oninput="renderDefectRecords()" placeholder="Defect අනුව Filter" class="bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    <select id="filterDefectStatus" onchange="renderDefectRecords()" class="bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white"><option value="">සියලු තත්ත්ව</option><option>Pending</option><option>In Progress</option><option>Resolved</option></select>
+                    <input id="filterDefectDate" type="date" onchange="renderDefectRecords()" class="bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    <button onclick="clearDefectFilters()" class="bg-slate-700 hover:bg-slate-600 rounded-xl p-2.5 text-xs font-bold">Clear Filters</button>
+                </div>
+                <div id="defectRecordsList" class="space-y-3"><p class="text-xs text-slate-400">වාර්තා load වෙමින් පවතී...</p></div>
+            </section>
+        </div>
+
+    </main>
+
+    <!-- Camera OCR Modal -->
+    <div id="ocrModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-card rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-white text-sm">📷 Mobile Camera Scanner</h3>
+                <button onclick="closeOcrModal()" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <video id="ocrVideo" autoplay playsinline class="w-full aspect-video bg-slate-950 rounded-xl object-cover border border-slate-800"></video>
+            <p id="ocrStatus" class="text-xs text-slate-300 text-center" role="status" aria-live="polite">Scan කිරීමට අවශ්‍ය අංකය හෝ ඉංග්‍රීසි පෙළ කැමරාවට පැහැදිලිව පෙන්වා Scan කරන්න.</p>
+            <button id="ocrScanButton" onclick="captureOcr()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl text-xs transition">Scan & Search Text</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Firebase Configuration with Singapore Regional URL ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCueusYyjgsL9T1_6vgRGMRCv6HAnUW-J0",
+            authDomain: "dye-app-bf508.firebaseapp.com",
+            databaseURL: "https://dye-app-bf508-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "dye-app-bf508",
+            storageBucket: "dye-app-bf508.firebasestorage.app",
+            messagingSenderId: "594661910325",
+            appId: "1:594661910325:web:1e9ed011f04c3a54c88e7c",
+            measurementId: "G-BEMG8N2XG9"
+        };
+
+        // Initialize Firebase Authentication and Realtime Database
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const auth = firebase.auth();
+        const ADMIN_UID = "nJes2xbzQHSh4YbkzSsgdJJZT3e2"; // bootstrap owner account
+        let db = { batches: {}, files: [] };
+        let commentsByBatch = {};
+        let activeBatchNo = null;
+        let currentRole = null;
+        let dataListener = null;
+        let commentsListener = null;
+        let defectRecords = {};
+        let defectsListener = null;
+
+        window.onload = function() {
+            auth.onAuthStateChanged(async (user) => {
+                if (!user) { showLogin(); return; }
+                try {
+                    let role = user.uid === ADMIN_UID ? 'admin' : null;
+                    const roleSnap = await database.ref('roles/' + user.uid).once('value');
+                    if (roleSnap.exists() && roleSnap.val() === 'staff') role = 'staff';
+                    if (roleSnap.exists() && roleSnap.val() === 'admin') role = 'admin';
+                    if (!role) {
+                        document.getElementById('loginMessage').innerText = 'මෙම ගිණුමට අවසර ලබා දී නැහැ. Admin අමතන්න.';
+                        await auth.signOut(); showLogin(); return;
+                    }
+                    currentRole = role;
+                    document.getElementById('loginGate').classList.add('hidden');
+                    document.getElementById('signOutBtn').classList.remove('hidden');
+                    document.getElementById('userRoleLabel').innerText = user.email + ' · ' + role.toUpperCase();
+                    document.getElementById('staffAdminPanel').classList.toggle('hidden', role !== 'admin');
+                    document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', role !== 'admin'));
+                    if (dataListener) database.ref('garment_pro_db_v3_final').off('value', dataListener);
+                    dataListener = (snapshot) => {
+                        const val = snapshot.val();
+                        db = val || { batches: {}, files: [] };
+                        if (!db.batches) db.batches = {};
+                        if (!db.files) db.files = [];
+                        updateIssueCountBadge(); renderFilesManager(); renderStaffRoles();
+                        if (activeBatchNo && db.batches[activeBatchNo]) handleSearchInput(activeBatchNo, true);
+                    };
+                    database.ref('garment_pro_db_v3_final').on('value', dataListener);
+                    if (defectsListener) database.ref('garment_pro_defects').off('value', defectsListener);
+                    defectsListener = (snapshot) => { defectRecords = snapshot.val() || {}; renderDefectRecords(); };
+                    database.ref('garment_pro_defects').on('value', defectsListener);
+                    const defectDateField = document.getElementById('defectDate');
+                    if (defectDateField && !defectDateField.value) defectDateField.value = new Date().toISOString().slice(0,10);
+                    if (defectsListener) database.ref('garment_pro_defects').off('value', defectsListener);
+                    defectsListener = (snapshot) => {
+                        defectRecords = snapshot.val() || {};
+                        renderDefectRecords();
+                    };
+                    database.ref('garment_pro_defects').on('value', defectsListener);
+                    const dateField = document.getElementById('defectDate');
+                    if (dateField && !dateField.value) dateField.value = new Date().toISOString().slice(0, 10);
+                } catch (err) {
+                    document.getElementById('loginMessage').innerText = 'Login/permission error: ' + err.message;
+                    await auth.signOut(); showLogin();
+                }
+            });
+        };
+
+        function showLogin() {
+            document.getElementById('loginGate').classList.remove('hidden');
+            document.getElementById('signOutBtn').classList.add('hidden');
+            document.getElementById('userRoleLabel').innerText = 'Not signed in';
+        }
+        async function signInUser(event) {
+            event.preventDefault();
+            document.getElementById('loginMessage').innerText = '';
+            try { await auth.signInWithEmailAndPassword(document.getElementById('loginEmail').value.trim(), document.getElementById('loginPassword').value); }
+            catch (e) { document.getElementById('loginMessage').innerText = 'Login failed: ' + e.message; }
+        }
+        async function signOutUser() { await auth.signOut(); location.reload(); }
+        function saveDB(data = db) {
+            if (currentRole !== 'admin') return Promise.reject(new Error('Only Admin can change production data.'));
+            return database.ref('garment_pro_db_v3_final').set(data);
+        }
+        async function assignStaffRole() {
+            if (currentRole !== 'admin' || !auth.currentUser || auth.currentUser.uid !== ADMIN_UID) return alert('Admin only.');
+            const uid = document.getElementById('staffUidInput').value.trim();
+            if (!uid) return alert('Staff UID එක ඇතුළත් කරන්න.');
+            if (uid === ADMIN_UID) return alert('Admin UID එක Staff ලෙස වෙනස් කළ නොහැක.');
+            try { await database.ref('roles/' + uid).set('staff'); document.getElementById('staffUidInput').value = ''; alert('Staff access granted.'); renderStaffRoles(); }
+            catch (e) { alert('Could not assign role: ' + e.message); }
+        }
+        async function renderStaffRoles() {
+            if (currentRole !== 'admin') return;
+            try {
+                const snap = await database.ref('roles').once('value');
+                const roles = snap.val() || {};
+                const entries = Object.entries(roles).filter(([uid, role]) => uid !== ADMIN_UID && role === 'staff');
+                document.getElementById('staffRolesList').innerHTML = entries.length ? entries.map(([uid]) => `<div class="flex justify-between gap-2 border-b border-slate-700 py-2"><span>${uid}</span><button onclick="removeStaffRole('${uid}')" class="text-rose-300">Remove access</button></div>`).join('') : 'No staff users authorized yet.';
+            } catch(e) { document.getElementById('staffRolesList').innerText = 'Could not load staff roles.'; }
+        }
+        async function removeStaffRole(uid) {
+            if (currentRole !== 'admin' || !auth.currentUser || auth.currentUser.uid !== ADMIN_UID) return alert('Admin only.');
+            if (confirm('Remove Staff access for this UID?')) { await database.ref('roles/' + uid).remove(); renderStaffRoles(); }
+        }
+        function firebaseSafeRow(row) {
+            return Object.fromEntries(Object.entries(row).map(([key, value]) => [
+                key === '' ? '%EMPTY' : key.replace(/[.%#$\/\[\]\u0000-\u001f\u007f]/g,
+                    char => '%' + char.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')),
+                value
+            ]));
+        }
+
+        function handleExcelUpload(event) {
+            if (currentRole !== 'admin') return alert("අවසර නැත! ඔබට Excel Upload කළ හැක්කේ Admin ලෙස පමණි.");
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const fileId = 'FILE_' + Date.now();
+            const fileName = file.name;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const jsonRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
+
+                let count = 0;
+                const importedDB = JSON.parse(JSON.stringify(db));
+                if (!importedDB.batches) importedDB.batches = {};
+                if (!importedDB.files) importedDB.files = [];
+
+                jsonRows.forEach(row => {
+                    const keys = Object.keys(row);
+                    const bKey = keys.find(k => k.toLowerCase().includes("batch")) || keys[0];
+                    const bNo = String(row[bKey]).trim().toUpperCase();
+
+                    if (bNo && bNo !== "UNDEFINED" && bNo !== "") {
+                        if (/[.#$\/\[\]\u0000-\u001f\u007f]/.test(bNo)) {
+                            throw new Error(`Batch number "${bNo}" contains characters Firebase does not allow.`);
+                        }
+                        const safeRow = firebaseSafeRow(row);
+                        count++;
+                        if (!Object.hasOwn(importedDB.batches, bNo)) {
+                            Object.defineProperty(importedDB.batches, bNo, {
+                                value: { fileId: fileId, comments: [], rawData: safeRow },
+                                enumerable: true, configurable: true, writable: true
+                            });
+                        } else {
+                            importedDB.batches[bNo].rawData = { ...importedDB.batches[bNo].rawData, ...safeRow };
+                        }
+                    }
+                });
+
+                importedDB.files.push({ id: fileId, name: fileName, count: count, date: new Date().toLocaleString() });
+                await saveDB(importedDB);
+                db = importedDB;
+                renderFilesManager();
+                alert(`Excel File (${fileName}) සාර්ථකව Upload වී Firebase වෙත ස්ථිරව සේව් විය! (Batches: ${count})`);
+                } catch (error) {
+                    console.error('Excel import failed:', error);
+                    alert(`Excel import failed: ${error.message || error}`);
+                }
+            };
+            reader.onerror = function() {
+                alert('Could not read the Excel file. Please try again.');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function deleteExcelFile(fileId) {
+            if (currentRole !== 'admin' || !auth.currentUser || auth.currentUser.uid !== ADMIN_UID) {
+                alert("අවසර නැත! Admin ගිණුමෙන් ඇතුළු වන්න.");
+                return;
+            }
+            if (!confirm("මෙම Excel File එක සහ එයට අදාළ Batch දත්ත මකා දැමීමට අවශ්‍යද?")) return;
+
+            // Work on a copy; only update the screen after Firebase confirms the write.
+            const updatedDB = JSON.parse(JSON.stringify(db || { batches: {}, files: [] }));
+            updatedDB.files = (updatedDB.files || []).filter(f => f.id !== fileId);
+            Object.keys(updatedDB.batches || {}).forEach(bNo => {
+                if (updatedDB.batches[bNo] && updatedDB.batches[bNo].fileId === fileId) {
+                    delete updatedDB.batches[bNo];
+                }
+            });
+
+            try {
+                await saveDB(updatedDB);
+                db = updatedDB;
+                renderFilesManager();
+                updateIssueCountBadge();
+                renderIssueBatches();
+                document.getElementById('batchDetailDisplay').classList.add('hidden');
+                activeBatchNo = null;
+                alert("Excel ගොනුව සහ එයට අදාළ Batch දත්ත Firebase වෙතින් මකා දැමුවා.");
+            } catch (error) {
+                console.error('Excel delete failed:', error);
+                alert("මකා දැමීමට නොහැකි වුණා. Firebase අවසර/සම්බන්ධතාව පරීක්ෂා කරන්න. විස්තරය: " + (error.message || error));
+            }
+        }
+
+        function getExactValue(row, targetNames) {
+            if (!row) return '--';
+            const keys = Object.keys(row);
+            for (let target of targetNames) {
+                const foundKey = keys.find(k => k.trim().toLowerCase() === target.toLowerCase());
+                if (foundKey && row[foundKey] !== undefined && row[foundKey] !== "") {
+                    return row[foundKey];
+                }
+            }
+            return '--';
+        }
+
+        function searchBatchManually() {
+            const input = document.getElementById('searchInput');
+            const query = input.value.trim();
+            const message = document.getElementById('batchSearchMessage');
+            if (!query) {
+                message.textContent = 'කරුණාකර Batch Number එක ඇතුළත් කරන්න.';
+                input.focus();
+                return;
+            }
+            handleSearchInput(query, false);
+        }
+
+        function handleSearchInput(val, isSilent = false) {
+            const query = String(val || '').trim().toUpperCase();
+            const message = document.getElementById('batchSearchMessage');
+            if (!query) {
+                if (!isSilent && message) message.textContent = 'කරුණාකර Batch Number එක ඇතුළත් කරන්න.';
+                return;
+            }
+
+            const batches = db.batches || {};
+            const keys = Object.keys(batches);
+            const matchedKey = keys.find(k => String(k).trim().toUpperCase() === query)
+                || keys.find(k => String(k).trim().toUpperCase().includes(query))
+                || keys.find(k => {
+                    const raw = batches[k].rawData || {};
+                    return Object.values(raw).some(v => String(v).trim().toUpperCase() === query);
+                });
+
+            if (matchedKey) {
+                if (message) message.textContent = 'Batch එක හමු වුණා: ' + matchedKey;
+                activeBatchNo = matchedKey;
+                const b = db.batches[matchedKey];
+                const raw = b.rawData || {};
+
+                document.getElementById('cardBatchNo').innerText = matchedKey;
+                document.getElementById('cardColour').innerText = getExactValue(raw, ['Colour', 'Color', 'Shade']);
+                document.getElementById('cardFabric').innerText = getExactValue(raw, ['Fabric Code', 'Fabric', 'Cord']);
+                document.getElementById('cardWeight').innerText = getExactValue(raw, ['Wgt', 'Weight', 'Qty']);
+                document.getElementById('cardStatus').innerText = getExactValue(raw, ['Sts', 'Status', 'State']) || 'Pending';
+                document.getElementById('cardPlanDate').innerText = getExactValue(raw, ['Plan EDT', 'Plan Date', 'Date']);
+                document.getElementById('cardStyle').innerText = getExactValue(raw, ['Style', 'Style No']);
+
+                const rawGrid = document.getElementById('allRawColumnsGrid');
+                rawGrid.innerHTML = Object.keys(raw).map(k => `
+                    <div class="p-2.5 bg-slate-900/90 border border-slate-800 rounded-xl">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase block truncate">${k}</span>
+                        <span class="text-slate-200 font-semibold">${raw[k] !== "" ? raw[k] : '--'}</span>
+                    </div>
+                `).join('');
+
+                document.getElementById('batchDetailDisplay').classList.remove('hidden');
+                listenForBatchComments(matchedKey);
+            } else if (!isSilent) {
+                if (message) message.textContent = 'මෙම Batch Number එක හමු වුණේ නැහැ. අංකය පරීක්ෂා කර නැවත Search කරන්න.';
+                document.getElementById('batchDetailDisplay').classList.add('hidden');
+            }
+        }
+
+        function listenForBatchComments(batchNo) {
+            if (commentsListener) database.ref('garment_pro_comments/' + commentsListener).off();
+            commentsListener = batchNo;
+            database.ref('garment_pro_comments/' + batchNo).on('value', snap => {
+                commentsByBatch[batchNo] = snap.val() || {};
+                if (activeBatchNo === batchNo) renderComments(); updateIssueCountBadge();
+            });
+        }
+
+        function setQuickComment(text) {
+            const input = document.getElementById('commentInput');
+            input.value = text;
+            input.focus();
+        }
+        function setDefectPreset(value) {
+            const el = document.getElementById('defectType');
+            el.value = value === 'Other' ? '' : value;
+            if (value === 'Other') el.placeholder = 'වෙනත් Defect එක ලියන්න';
+            el.focus();
+        }
+        function setDefectDescription(value) {
+            document.getElementById('defectDescription').value = value;
+        }
+        function setDefectAction(value) {
+            document.getElementById('defectAction').value = value;
+        }
+        function startVoiceInput(targetId) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const status = document.getElementById('voiceStatus');
+            if (!SpeechRecognition) {
+                alert('මෙම Browser එකේ Voice Typing සහාය නැහැ. Android Chrome එකේ Microphone permission ලබාදී නැවත උත්සාහ කරන්න, නැත්නම් keyboard එකේ microphone බොත්තම භාවිතා කරන්න.');
+                return;
+            }
+            const target = document.getElementById(targetId);
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'si-LK';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+            recognition.onstart = () => { if (status) status.textContent = 'දැන් කතා කරන්න…'; };
+            recognition.onresult = (event) => {
+                const spoken = event.results[0][0].transcript || '';
+                target.value = (target.value.trim() ? target.value.trim() + ' ' : '') + spoken;
+                target.dispatchEvent(new Event('input', { bubbles: true }));
+                if (status) status.textContent = 'කථාව ඇතුළත් කළා. අවශ්‍ය නම් පරීක්ෂා කරන්න.';
+            };
+            recognition.onerror = (event) => { if (status) status.textContent = 'Voice Typing දෝෂය: ' + event.error + '. Keyboard microphone එකත් භාවිතා කළ හැකියි.'; };
+            recognition.onend = () => { if (status && status.textContent === 'දැන් කතා කරන්න…') status.textContent = 'Voice Typing අවසන්.'; };
+            try { recognition.start(); } catch (e) { if (status) status.textContent = 'Voice Typing ආරම්භ කළ නොහැක. නැවත උත්සාහ කරන්න.'; }
+        }
+
+        function toggleOtherCommentIssue() {
+            const select = document.getElementById('commentIssueSelect');
+            const other = document.getElementById('commentOtherIssue');
+            const show = select.value === 'Other';
+            other.classList.toggle('hidden', !show);
+            other.required = show;
+        }
+
+        async function submitComment() {
+            const input = document.getElementById('commentInput');
+            const area = document.getElementById('commentAreaSelect').value;
+            const category4M = document.getElementById('comment4MSelect').value;
+            const personName = document.getElementById('commentPersonName').value.trim();
+            const epfNo = document.getElementById('commentEpfNo').value.trim();
+            const issueChoice = document.getElementById('commentIssueSelect').value;
+            const otherIssue = document.getElementById('commentOtherIssue').value.trim();
+            const issue = issueChoice === 'Other' ? otherIssue : issueChoice;
+            const txt = input.value.trim();
+            if (!activeBatchNo || !auth.currentUser) return alert('පළමුව Batch එකක් Search කර විවෘත කරන්න.');
+            if (currentRole !== 'admin' && currentRole !== 'staff') return alert('Login required.');
+            if (!area || !category4M || !personName || !epfNo || !issue || !txt) return alert('Area, 4M වර්ගය, නම, EPF අංකය, Issue සහ Comment සියල්ල පුරවන්න.');
+            const entry = {
+                tag: issue,
+                area: area,
+                category4M: category4M,
+                issue: issue,
+                personName: personName,
+                epfNo: epfNo,
+                text: txt,
+                time: new Date().toLocaleString(),
+                author: auth.currentUser.email || auth.currentUser.uid
+            };
+            try {
+                await database.ref('garment_pro_comments/' + activeBatchNo).push(entry);
+                input.value = '';
+                document.getElementById('commentIssueSelect').value = '';
+                document.getElementById('commentOtherIssue').value = '';
+                toggleOtherCommentIssue();
+                updateIssueCountBadge();
+                renderComments();
+                alert('Comment එක සුරැකුවා.');
+            } catch (e) { alert('Comment save failed: ' + e.message); }
+        }
+
+        function renderComments() {
+            if (!activeBatchNo || !db.batches[activeBatchNo]) return;
+            const container = document.getElementById('commentsTimeline');
+            const comments = Object.entries(commentsByBatch[activeBatchNo] || {}).map(([id, c], index) => ({ id, ...c, no: index + 1 }));
+            if (comments.length === 0) { container.innerHTML = `<p class="text-xs text-slate-500 italic">Comments නොමැත.</p>`; return; }
+            container.innerHTML = comments.map(c => `
+                <div class="p-3 bg-slate-900/90 border border-slate-800 rounded-xl text-xs space-y-1">
+                    <div class="flex justify-between items-center font-bold"><div class="flex items-center gap-2 flex-wrap"><span class="text-blue-400">Comment #${c.no}</span><span class="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded text-[10px]">${escapeHtml(c.area || '')}</span><span class="bg-violet-500/20 text-violet-300 px-2 py-0.5 rounded text-[10px]">${escapeHtml(c.category4M || '')}</span><span class="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded text-[10px]">${escapeHtml(c.issue || c.tag || '')}</span></div><span class="text-[10px] font-normal text-slate-500">${escapeHtml(c.time || '')}</span></div>
+                    <p class="text-slate-200">${escapeHtml(c.text || '')}</p><p class="text-[10px] text-slate-400">${escapeHtml(c.personName || c.author || '')}${c.epfNo ? ' · EPF: ' + escapeHtml(c.epfNo) : ''}</p>
+                </div>`).reverse().join('');
+        }
+        function escapeHtml(value) { return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+
+        function updateIssueCountBadge() {
+            let issueCount = 0;
+            Object.values(commentsByBatch).forEach(list => {
+                if (Object.values(list || {}).some(c => c.tag !== 'General Update')) issueCount++;
+            });
+            document.getElementById('issueCountBadge').innerText = issueCount;
+        }
+
+        function renderIssueBatches() {
+            const grid = document.getElementById('issueBatchesGrid');
+            let html = '';
+            let count = 0;
+
+            Object.keys(db.batches || {}).forEach(bNo => {
+                const b = db.batches[bNo];
+                const issues = Object.values(commentsByBatch[bNo] || {}).filter(c => c.tag !== 'General Update');
+                if (issues.length > 0) {
+                    count++;
+                    html += `
+                        <div class="p-4 bg-slate-900 border border-amber-500/30 rounded-xl space-y-2">
+                            <div class="flex justify-between items-center">
+                                <strong class="text-white text-base">${bNo}</strong>
+                                <button onclick="switchTab('search'); document.getElementById('searchInput').value='${bNo}'; handleSearchInput('${bNo}');" class="text-xs bg-blue-600 text-white px-2.5 py-1 rounded">View</button>
+                            </div>
+                            <div class="text-xs text-slate-300 space-y-1">
+                                ${issues.map(i => `<div class="bg-amber-500/10 p-1.5 rounded border border-amber-500/20"><span class="text-amber-400 font-bold">[${i.tag}]</span>${i.text}</div>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            document.getElementById('issueFilterTotal').innerText = `Total Issues: ${count}`;
+            grid.innerHTML = html || `<p class="text-xs text-slate-500 italic col-span-2">ගැටලුකාරී (Issue) Batches කිසිවක් වාර්තා වී නැත.</p>`;
+        }
+
+        function renderFilesManager() {
+            const container = document.getElementById('filesListContainer');
+            if (!container) return;
+            const files = db.files || [];
+            if (files.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 italic">Upload කළ Excel Files කිසිවක් නැත.</p>`;
+                return;
+            }
+
+            container.innerHTML = files.map(f => `
+                <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl flex justify-between items-center text-xs">
+                    <div>
+                        <strong class="text-white text-sm block"><i class="fa-solid fa-file-excel text-emerald-400 mr-2"></i>${f.name}</strong>
+                        <span class="text-slate-400">Batches: ${f.count} | Uploaded: ${f.date}</span>
+                    </div>
+                    ${currentRole === 'admin' ? `<button onclick="deleteExcelFile('${f.id}')" class="bg-rose-500/20 text-rose-400 px-3 py-1.5 rounded-lg font-bold">Delete File</button>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function deleteCurrentBatch() {
+            if (currentRole !== 'admin') return alert("අවසර නැත!");
+            if (confirm(`ඔබට ${activeBatchNo} Batch එක මකා දැමීමට අවශ්‍යද?`)) {
+                delete db.batches[activeBatchNo];
+                saveDB();
+                document.getElementById('batchDetailDisplay').classList.add('hidden');
+            }
+        }
+
+        function openCommentsInNewWindow() {
+            if (!activeBatchNo) return;
+            const comments = Object.values(commentsByBatch[activeBatchNo] || {});
+            const newWin = window.open("", "_blank", "width=500,height=600");
+            let html = `<html><head><title>Comments - ${activeBatchNo}</title><script src="https://cdn.tailwindcss.com"><\/script></head><body class="p-5 bg-slate-900 text-white font-sans">`;
+            html += `<h2 class="text-lg font-bold mb-4 border-b border-slate-800 pb-2">Batch ${activeBatchNo} - Comments</h2>`;
+            comments.forEach(c => {
+                html += `<div class="p-3 bg-slate-800 mb-2 rounded-xl border border-slate-700"><strong class="text-blue-400 text-xs block">Comment #${c.no} (${c.tag}) <span class="text-[10px] text-slate-400 font-normal">(${c.time})</span></strong><p class="text-xs text-slate-200 mt-1">${c.text}</p></div>`;
+            });
+            html += `</body></html>`;
+            newWin.document.write(html);
+        }
+
+        function switchTab(tab) {
+            ['tabSearchContent','tabIssuesContent','tabFilesContent','tabDefectsContent'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+            ['tabBtnSearch','tabBtnIssues','tabBtnFiles','tabBtnDefects'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.classList.remove('bg-blue-600','text-white','shadow-md'); el.classList.add('text-slate-400'); }
+            });
+            const btn = document.getElementById(({search:'tabBtnSearch',issues:'tabBtnIssues',files:'tabBtnFiles',defects:'tabBtnDefects'})[tab]);
+            if (btn) { btn.classList.add('bg-blue-600','text-white','shadow-md'); btn.classList.remove('text-slate-400'); }
+            if (tab === 'search') document.getElementById('tabSearchContent').classList.remove('hidden');
+            else if (tab === 'issues') { document.getElementById('tabIssuesContent').classList.remove('hidden'); renderIssueBatches(); }
+            else if (tab === 'files') { document.getElementById('tabFilesContent').classList.remove('hidden'); renderFilesManager(); }
+            else if (tab === 'defects') { document.getElementById('tabDefectsContent').classList.remove('hidden'); if (activeBatchNo && !document.getElementById('defectBatchNo').value) document.getElementById('defectBatchNo').value = activeBatchNo; renderDefectRecords(); }
+        }
+
+        async function saveDefectRecord(event) {
+            event.preventDefault();
+            if (!auth.currentUser || !['admin','staff'].includes(currentRole)) {
+                document.getElementById('defectSaveMessage').textContent = 'Login අවශ්‍යයි.'; return;
+            }
+            const batchNo = document.getElementById('defectBatchNo').value.trim().toUpperCase();
+            const area = document.getElementById('defectArea').value;
+            const type = document.getElementById('defectType').value.trim();
+            const description = document.getElementById('defectDescription').value.trim();
+            if (!batchNo || !area || !type || !description || !document.getElementById('actionPersonName').value.trim() || !document.getElementById('actionPersonEpf').value.trim()) {
+                document.getElementById('defectSaveMessage').textContent = 'Batch Number, Area, Defect, විස්තර, ක්‍රියාමාර්ග ගත් පුද්ගලයාගේ නම සහ EPF අංකය අනිවාර්යයි.'; return;
+            }
+            const record = {
+                batchNo, area, type, description,
+                action: document.getElementById('defectAction').value.trim(),
+                actionPersonName: document.getElementById('actionPersonName').value.trim(),
+                actionPersonEpf: document.getElementById('actionPersonEpf').value.trim(),
+                category: document.getElementById('defectCategory').value,
+                status: document.getElementById('defectStatus').value,
+                date: document.getElementById('defectDate').value || new Date().toISOString().slice(0,10),
+                createdAt: Date.now(), createdBy: auth.currentUser.email || auth.currentUser.uid, updatedAt: Date.now()
+            };
+            try {
+                await database.ref('garment_pro_defects').push(record);
+                document.getElementById('defectEntryForm').reset();
+                document.getElementById('defectDate').value = new Date().toISOString().slice(0,10);
+                document.getElementById('defectSaveMessage').textContent = 'Defect වාර්තාව සාර්ථකව සුරැකිණි.';
+            } catch (error) {
+                document.getElementById('defectSaveMessage').textContent = 'Save කළ නොහැක: ' + (error.message || error) + ' (Firebase Database Rules පරීක්ෂා කරන්න.)';
+            }
+        }
+
+        function getFilteredDefectRecords() {
+            const batchFilter = (document.getElementById('filterDefectBatch')?.value || '').trim().toUpperCase();
+            const areaFilter = document.getElementById('filterDefectArea')?.value || '';
+            const typeFilter = (document.getElementById('filterDefectType')?.value || '').trim().toLowerCase();
+            const statusFilter = document.getElementById('filterDefectStatus')?.value || '';
+            const dateFilter = document.getElementById('filterDefectDate')?.value || '';
+            return Object.entries(defectRecords || {}).map(([id,r]) => ({...r,id}))
+                .filter(r => (!batchFilter || String(r.batchNo||'').toUpperCase().includes(batchFilter)) &&
+                    (!areaFilter || r.area === areaFilter) &&
+                    (!typeFilter || String(r.type||'').toLowerCase().includes(typeFilter)) &&
+                    (!statusFilter || r.status === statusFilter) && (!dateFilter || r.date === dateFilter))
+                .sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+        }
+
+        function renderDefectRecords() {
+            const container = document.getElementById('defectRecordsList');
+            if (!container) return;
+            const allCount = Object.keys(defectRecords || {}).length;
+            const filtered = getFilteredDefectRecords();
+            document.getElementById('defectRecordCount').textContent = `පෙන්වන වාර්තා: ${filtered.length} / මුළු වාර්තා: ${allCount}`;
+            if (!filtered.length) { container.innerHTML = '<p class="text-xs text-slate-400">මෙම Filter වලට ගැළපෙන Defect වාර්තා නැහැ.</p>'; return; }
+            container.innerHTML = filtered.map(r => `
+                <article class="bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-2">
+                    <div class="flex flex-wrap justify-between gap-2"><div><strong class="text-blue-300">${escapeHtml(r.batchNo||'')}</strong><span class="ml-2 text-xs text-slate-400">${escapeHtml(r.date||'')}</span></div>
+                    <span class="text-xs px-2 py-1 rounded-lg ${r.status==='Resolved'?'bg-emerald-500/15 text-emerald-300':r.status==='In Progress'?'bg-blue-500/15 text-blue-300':'bg-amber-500/15 text-amber-300'}">${escapeHtml(r.status||'Pending')}</span></div>
+                    <div class="flex flex-wrap gap-2 text-xs"><span class="bg-indigo-500/15 text-indigo-200 px-2 py-1 rounded">${escapeHtml(r.area||'')}</span><span class="bg-rose-500/15 text-rose-200 px-2 py-1 rounded">${escapeHtml(r.type||'')}</span></div>
+                    <p class="text-sm text-slate-200 whitespace-pre-wrap">${escapeHtml(r.description||'')}</p>
+                    ${r.category?`<p class="text-xs text-violet-200"><strong>4M:</strong> ${escapeHtml(r.category)}</p>`:''}
+                    ${r.action?`<p class="text-xs text-emerald-200 whitespace-pre-wrap"><strong>ක්‍රියාමාර්ග:</strong> ${escapeHtml(r.action)}</p>`:'<p class="text-xs text-slate-500">ක්‍රියාමාර්ග තවම සටහන් කර නැහැ.</p>'}
+                    <p class="text-xs text-slate-300"><strong>ක්‍රියාමාර්ග ගත් පුද්ගලයා:</strong> ${escapeHtml(r.actionPersonName||'')}</p><p class="text-xs text-slate-300"><strong>EPF No:</strong> ${escapeHtml(r.actionPersonEpf||'')}</p>
+                    <div class="flex flex-wrap justify-between items-center gap-2 border-t border-slate-800 pt-2"><span class="text-[10px] text-slate-500">සටහන් කළේ: ${escapeHtml(r.createdBy||'')}</span><div class="flex gap-2"><button onclick="updateDefectRecord('${r.id}')" class="bg-blue-600/30 text-blue-200 px-3 py-1.5 rounded-lg text-xs font-bold">Update</button><button onclick="searchBatchFromDefect('${encodeURIComponent(r.batchNo||'')}')" class="bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold">View Batch</button></div></div>
+                </article>`).join('');
+        }
+
+        async function updateDefectRecord(id) {
+            const r = defectRecords[id]; if (!r) return;
+            const action = prompt('ගත් ක්‍රියාමාර්ග / විසඳුම ඇතුළත් කරන්න:', r.action || '');
+            if (action === null) return;
+            const status = prompt('තත්ත්වය ඇතුළත් කරන්න: Pending, In Progress, Resolved', r.status || 'Pending');
+            if (status === null) return;
+            const normalized = ['Pending','In Progress','Resolved'].find(s => s.toLowerCase() === status.trim().toLowerCase());
+            if (!normalized) return alert('තත්ත්වය Pending, In Progress හෝ Resolved විය යුතුයි.');
+            try { await database.ref('garment_pro_defects/' + id).update({action:action.trim(),status:normalized,updatedAt:Date.now(),updatedBy:auth.currentUser?.email||auth.currentUser?.uid||''}); }
+            catch(e) { alert('Update කළ නොහැක: ' + e.message); }
+        }
+
+        function searchBatchFromDefect(encodedBatch) {
+            const batchNo = decodeURIComponent(encodedBatch); switchTab('search');
+            document.getElementById('searchInput').value = batchNo; searchBatchManually();
+        }
+
+        function clearDefectFilters() {
+            ['filterDefectBatch','filterDefectArea','filterDefectType','filterDefectStatus','filterDefectDate'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+            renderDefectRecords();
+        }
+
+        function exportDefectsExcel() {
+            if (!window.XLSX) return alert('Excel library load වී නැහැ. Internet සම්බන්ධතාවය පරීක්ෂා කරන්න.');
+            const rows = getFilteredDefectRecords().map(r => ({
+                'Date':r.date||'','Batch Number':r.batchNo||'','Area':r.area||'','Defect':r.type||'',
+                'Description':r.description||'','Action / Resolution':r.action||'','Action Taken By':r.actionPersonName||'','EPF No':r.actionPersonEpf||'','4M Category':r.category||'','Status':r.status||'',
+                'Entered By':r.createdBy||'','Updated By':r.updatedBy||'',
+                'Last Updated':r.updatedAt?new Date(r.updatedAt).toLocaleString():''
+            }));
+            if (!rows.length) return alert('Export කිරීමට වාර්තා නැහැ.');
+            const ws=XLSX.utils.json_to_sheet(rows), wb=XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb,ws,'Defect Records');
+            XLSX.writeFile(wb,'DYEING-PRO-Defect-Records.xlsx');
+        }
+
+        let mediaStream = null;
+        let ocrTargetId = null;
+        function openOcrForField(targetId) { ocrTargetId = targetId; openOcrModal(); }
+        async function openOcrModal() {
+            document.getElementById('ocrModal').classList.remove('hidden');
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                document.getElementById('ocrVideo').srcObject = mediaStream;
+            } catch(e) { alert("Camera error: " + e.message); }
+        }
+
+        function closeOcrModal() {
+            document.getElementById('ocrModal').classList.add('hidden');
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+        }
+
+        async function captureOcr() {
+            const video = document.getElementById('ocrVideo');
+            const status = document.getElementById('ocrStatus');
+            const button = document.getElementById('ocrScanButton');
+
+            if (!window.Tesseract || typeof Tesseract.recognize !== 'function') {
+                status.textContent = 'OCR සේවාව load වී නැහැ. Internet සම්බන්ධතාවය පරීක්ෂා කර Refresh කරන්න.';
+                return;
+            }
+            if (!video || !video.videoWidth || !video.videoHeight || video.readyState < 2) {
+                status.textContent = 'කැමරාව සූදානම් නැහැ. තත්පර කිහිපයක් ඉඳලා නැවත Scan කරන්න.';
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = 'Reading number...';
+            status.textContent = 'අංකය කියවමින් පවතී. කරුණාකර රැඳී සිටින්න...';
+
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Improve contrast for printed batch numbers before OCR.
+                const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                for (let i = 0; i < frame.data.length; i += 4) {
+                    const gray = Math.round(
+                        0.299 * frame.data[i] +
+                        0.587 * frame.data[i + 1] +
+                        0.114 * frame.data[i + 2]
+                    );
+                    const contrast = gray > 145 ? 255 : 0;
+                    frame.data[i] = frame.data[i + 1] = frame.data[i + 2] = contrast;
+                }
+                ctx.putImageData(frame, 0, 0);
+
+                const result = await Tesseract.recognize(canvas, 'eng', {
+                    logger: info => {
+                        if (info.status === 'recognizing text' && info.progress != null) {
+                            status.textContent = 'අංකය කියවමින්... ' + Math.round(info.progress * 100) + '%';
+                        } else if (info.status) {
+                            status.textContent = 'OCR: ' + info.status + '...';
+                        }
+                    }
+                });
+
+                const rawText = (result && result.data && result.data.text ? result.data.text : '').trim();
+                // Batch numbers are usually numeric; prefer a complete run of 5 or more digits.
+                const numberMatches = rawText.match(/[0-9][0-9\s-]{3,}[0-9]/g) || [];
+                const bestNumber = numberMatches
+                    .map(value => value.replace(/\D/g, ''))
+                    .filter(value => value.length >= 5)
+                    .sort((a, b) => b.length - a.length)[0];
+                const cleanedText = (bestNumber || rawText.replace(/\s+/g, ' ').trim()).trim();
+
+                if (!cleanedText) {
+                    status.textContent = 'අංකය කියවන්න බැරි වුණා. අංකය ළඟට ගෙන, ආලෝකය වැඩි කර නැවත Scan කරන්න.';
+                    return;
+                }
+
+                if (ocrTargetId) {
+                    const target = document.getElementById(ocrTargetId);
+                    if (target) {
+                        const valueToUse = rawText.replace(/\s+/g, ' ').trim();
+                        target.value = valueToUse || cleanedText;
+                        target.dispatchEvent(new Event('input', { bubbles: true }));
+                        target.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    ocrTargetId = null;
+                    status.textContent = 'Scan කළ පෙළ ඇතුළත් කළා. අවශ්‍ය නම් නිවැරදි කරන්න.';
+                    closeOcrModal();
+                } else {
+                    document.getElementById('searchInput').value = cleanedText;
+                    handleSearchInput(cleanedText, true);
+                    closeOcrModal();
+                    searchBatchManually();
+                }
+            } catch (error) {
+                console.error('OCR scan failed:', error);
+                status.textContent = 'OCR දෝෂයක්. Internet සම්බන්ධතාවය පරීක්ෂා කර නැවත උත්සාහ කරන්න.';
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Scan & Search Text';
+            }
+        }
+
+        // Add Voice Typing + Camera Scan controls to editable text fields across the app.
+        function addVoiceAndScanToTextFields() {
+            const fields = Array.from(document.querySelectorAll('input:not([type]), input[type="text"], input[type="search"], input[type="tel"], input[type="email"], textarea'));
+            fields.forEach(field => {
+                if (field.id === 'loginEmail' || field.id === 'loginPassword' || field.dataset.voiceScanAdded === '1') return;
+                field.dataset.voiceScanAdded = '1';
+                const controls = document.createElement('div');
+                controls.className = 'flex flex-wrap gap-2 mt-1 mb-2';
+                const voice = document.createElement('button');
+                voice.type = 'button';
+                voice.className = 'bg-violet-700 hover:bg-violet-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold';
+                voice.innerHTML = '<i class="fa-solid fa-microphone mr-1"></i> Voice Typing';
+                voice.setAttribute('aria-label', 'Voice type into ' + (field.placeholder || field.id || 'field'));
+                voice.addEventListener('click', () => startVoiceInput(field.id));
+                const scan = document.createElement('button');
+                scan.type = 'button';
+                scan.className = 'bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold';
+                scan.innerHTML = '<i class="fa-solid fa-camera mr-1"></i> Scan Text';
+                scan.setAttribute('aria-label', 'Scan text into ' + (field.placeholder || field.id || 'field'));
+                scan.addEventListener('click', () => openOcrForField(field.id));
+                controls.append(voice, scan);
+                field.insertAdjacentElement('afterend', controls);
+            });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', addVoiceAndScanToTextFields);
+        } else {
+            addVoiceAndScanToTextFields();
+        }
+    </script>
+</body>
+</html>
