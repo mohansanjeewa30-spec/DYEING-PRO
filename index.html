@@ -1046,28 +1046,55 @@
             }
         }
 
-        // Add Voice Typing + Camera Scan controls to editable text fields across the app.
+        // Add only missing Voice Typing / Scan Text controls. Some fields already
+        // have hand-written controls, so detect those first to avoid duplicates.
         function addVoiceAndScanToTextFields() {
             const fields = Array.from(document.querySelectorAll('input:not([type]), input[type="text"], input[type="search"], input[type="tel"], input[type="email"], textarea'));
             fields.forEach(field => {
                 if (field.id === 'loginEmail' || field.id === 'loginPassword' || field.dataset.voiceScanAdded === '1') return;
                 field.dataset.voiceScanAdded = '1';
+                if (!field.id) return;
+
+                // Look in the field's immediate form group for controls already
+                // wired to this exact field (e.g. commentInput, defectDescription).
+                const group = field.parentElement || field;
+                const buttons = Array.from(group.querySelectorAll('button[onclick], button'));
+                const hasVoice = buttons.some(button => {
+                    const handler = button.getAttribute('onclick') || '';
+                    const label = (button.textContent || '').toLowerCase();
+                    return handler.includes("startVoiceInput('" + field.id + "')") ||
+                           (label.includes('voice typing') && button.dataset.targetField === field.id) ||
+                           (label.includes('කතා කරලා ලියන්න') && handler.includes(field.id));
+                });
+                const hasScan = buttons.some(button => {
+                    const handler = button.getAttribute('onclick') || '';
+                    const label = (button.textContent || '').toLowerCase();
+                    return handler.includes("openOcrForField('" + field.id + "')") ||
+                           (label.includes('scan text') && handler.includes(field.id));
+                });
+                if (hasVoice && hasScan) return;
+
                 const controls = document.createElement('div');
                 controls.className = 'flex flex-wrap gap-2 mt-1 mb-2';
-                const voice = document.createElement('button');
-                voice.type = 'button';
-                voice.className = 'bg-violet-700 hover:bg-violet-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold';
-                voice.innerHTML = '<i class="fa-solid fa-microphone mr-1"></i> Voice Typing';
-                voice.setAttribute('aria-label', 'Voice type into ' + (field.placeholder || field.id || 'field'));
-                voice.addEventListener('click', () => startVoiceInput(field.id));
-                const scan = document.createElement('button');
-                scan.type = 'button';
-                scan.className = 'bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold';
-                scan.innerHTML = '<i class="fa-solid fa-camera mr-1"></i> Scan Text';
-                scan.setAttribute('aria-label', 'Scan text into ' + (field.placeholder || field.id || 'field'));
-                scan.addEventListener('click', () => openOcrForField(field.id));
-                controls.append(voice, scan);
-                field.insertAdjacentElement('afterend', controls);
+                if (!hasVoice) {
+                    const voice = document.createElement('button');
+                    voice.type = 'button';
+                    voice.className = 'bg-violet-700 hover:bg-violet-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold';
+                    voice.innerHTML = '<i class="fa-solid fa-microphone mr-1"></i> Voice Typing';
+                    voice.setAttribute('aria-label', 'Voice type into ' + (field.placeholder || field.id || 'field'));
+                    voice.addEventListener('click', () => startVoiceInput(field.id));
+                    controls.appendChild(voice);
+                }
+                if (!hasScan) {
+                    const scan = document.createElement('button');
+                    scan.type = 'button';
+                    scan.className = 'bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold';
+                    scan.innerHTML = '<i class="fa-solid fa-camera mr-1"></i> Scan Text';
+                    scan.setAttribute('aria-label', 'Scan text into ' + (field.placeholder || field.id || 'field'));
+                    scan.addEventListener('click', () => openOcrForField(field.id));
+                    controls.appendChild(scan);
+                }
+                if (controls.children.length) field.insertAdjacentElement('afterend', controls);
             });
         }
         if (document.readyState === 'loading') {
