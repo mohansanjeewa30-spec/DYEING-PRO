@@ -231,10 +231,15 @@
                     </div>
 
                     <div class="space-y-4">
+                        <div>
+                            <label for="commentBatchNumbers" class="block text-xs font-bold text-slate-400 mb-1">Batch Number(s) — අනිවාර්ය නැහැ</label>
+                            <textarea id="commentBatchNumbers" rows="2" placeholder="Batch අංක කිහිපයක් comma (,) හෝ අලුත් පේළියකින් වෙන් කර ලියන්න. හිස්ව තැබුවොත් Batch එකකට සම්බන්ධ නොවන Comment එකක් ලෙස සුරැකේ." class="w-full bg-slate-900/90 border border-slate-700 rounded-xl p-3 text-sm text-white"></textarea>
+                            <p class="text-[11px] text-slate-500 mt-1">උදා: 12345, 12346, 12347 — එකම Comment එක සියලු Batch වලටම සුරැකේ.</p>
+                        </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label for="commentAreaSelect" class="block text-xs font-bold text-slate-400 mb-1">1. Area එක තෝරන්න *</label>
-                                <select id="commentAreaSelect" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white">
+                                <label for="commentAreaSelect" class="block text-xs font-bold text-slate-400 mb-1">1. Area එක තෝරන්න (අනිවාර්ය නැහැ)</label>
+                                <select id="commentAreaSelect" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white">
                                     <option value="">Area එක තෝරන්න</option>
                                     <option>After Preseting</option><option>Preseting</option><option>After Presenting</option>
                                     <option>Dye Maching</option><option>Dryer</option><option>Sorting</option><option>After Sorting</option>
@@ -242,8 +247,8 @@
                                 </select>
                             </div>
                             <div class="order-4">
-                                <label for="comment4MSelect" class="block text-xs font-bold text-slate-400 mb-1">2. 4M Issue වර්ගය *</label>
-                                <select id="comment4MSelect" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white">
+                                <label for="comment4MSelect" class="block text-xs font-bold text-slate-400 mb-1">2. 4M Issue වර්ගය (අනිවාර්ය නැහැ)</label>
+                                <select id="comment4MSelect" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white">
                                     <option value="">4M වර්ගය තෝරන්න</option><option>Man</option><option>Machine</option><option>Method</option><option>Material</option>
                                 </select>
                             </div>
@@ -256,13 +261,13 @@
                                 <input id="commentEpfNo" required inputmode="numeric" placeholder="EPF No ඇතුළත් කරන්න" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white">
                             </div>
                             <div class="sm:col-span-2">
-                                <label for="commentIssueSelect" class="block text-xs font-bold text-slate-400 mb-1">5. Issue / Defect එක තෝරන්න *</label>
-                                <select id="commentIssueSelect" required onchange="toggleOtherCommentIssue()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white">
+                                <label for="commentIssueSelect" class="block text-xs font-bold text-slate-400 mb-1">5. Issue / Defect එක (අනිවාර්ය නැහැ)</label>
+                                <select id="commentIssueSelect" onchange="toggleOtherCommentIssue()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white">
                                     <option value="">Area සහ 4M තෝරා පසුව Issue එක තෝරන්න</option>
                                     <option>Dye Patch</option><option>Shade Out</option><option>Snagging</option><option>Dye Dot</option>
                                     <option>Crush Mark</option><option>Burn Mark</option><option>Preseting Mark</option><option>Folding Mark</option>
                                     <option>Softner Mark</option><option>Shade Variation</option><option>Unleval</option><option>Body Sleeve Component Mismatch</option>
-                                    <option>PCS Less</option><option>Measurement Issue</option><option>Side Dye Patch</option><option>Bursting Fail</option><option>Testing Fail</option>
+                                    <option>PCS Less</option><option>Measurement Issue</option><option>Side Dye Patch</option><option>Bursting Fail</option><option>Testing Fail</option><option>Shade Pending</option>
                                     <option value="Other">වෙනත් Issue එකක්</option>
                                 </select>
                                 <input id="commentOtherIssue" class="hidden mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white" placeholder="වෙනත් Issue එකේ නම ලියන්න / Voice Typing කරන්න">
@@ -288,6 +293,11 @@
                     </div>
 
                     <div id="commentsTimeline" class="space-y-2.5 pt-2"></div>
+                    <div class="border-t border-slate-800 pt-4 space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2"><h4 class="font-bold text-white text-sm">සියලුම Comments — සියලු Batch</h4><button type="button" onclick="renderAllComments()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg text-xs font-bold">Refresh List</button></div>
+                        <input id="allCommentsSearch" oninput="renderAllComments()" placeholder="Batch / නම / EPF / Comment අනුව සොයන්න" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white">
+                        <div id="allCommentsTimeline" class="space-y-2.5"><p class="text-xs text-slate-500">Comments load වෙමින් පවතී...</p></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -318,7 +328,7 @@
                     <div><label class="block text-xs text-slate-300 mb-1">Batch Number *</label><input id="defectBatchNo" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white" placeholder="Batch Number"></div>
                     <div><label class="block text-xs text-slate-300 mb-1">දිනය *</label><input id="defectDate" type="date" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white"></div>
                     <div><label class="block text-xs text-slate-300 mb-1">Area *</label><select id="defectArea" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white"><option value="">Area තෝරන්න</option><option>1. After Preseting</option><option>2. Preseting</option><option>3. After Presenting</option><option>4. Dye Maching</option><option>5. Dryer</option><option>6. Sorting</option><option>7. After Sorting</option><option>8. QA In</option><option>9. QA Retrun</option></select></div>
-                    <div class="md:col-span-2"><label class="block text-xs text-slate-300 mb-1">Defect වර්ගය *</label><select id="defectType" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white"><option value="">Defect එක තෝරන්න</option><option>Dye Patch</option><option>Shade Out</option><option>Snagging</option><option>Dye Dot</option><option>Crush Mark</option><option>Burn Mark</option><option>Preseting Mark</option><option>Folding Mark</option><option>Softner Mark</option><option>Shade Variation</option><option>Unleval</option><option>Body / Sleeve Component Mismatch</option><option>PCS Less</option><option>Measurement Issue</option><option>Side Dye Patch</option><option>Bursting Fail</option><option>Testing Fail</option></select></div>
+                    <div class="md:col-span-2"><label class="block text-xs text-slate-300 mb-1">Defect වර්ගය *</label><select id="defectType" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white"><option value="">Defect එක තෝරන්න</option><option>Dye Patch</option><option>Shade Out</option><option>Snagging</option><option>Dye Dot</option><option>Crush Mark</option><option>Burn Mark</option><option>Preseting Mark</option><option>Folding Mark</option><option>Softner Mark</option><option>Shade Variation</option><option>Unleval</option><option>Body / Sleeve Component Mismatch</option><option>PCS Less</option><option>Measurement Issue</option><option>Side Dye Patch</option><option>Bursting Fail</option><option>Testing Fail</option><option>Shade Pending</option></select></div>
                     <div><label class="block text-xs text-slate-300 mb-1">Issue Category (4M)</label><select id="defectCategory" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white"><option value="">පසුව තෝරන්න</option><option>Man</option><option>Machine</option><option>Method</option><option>Material</option></select><p class="text-xs text-slate-500 mt-1">Man / Machine / Method / Material විස්තර පසුව එකතු කළ හැකියි.</p></div>
                     <div class="md:col-span-2"><label class="block text-xs text-slate-300 mb-1">ගැටලුවේ විස්තරය *</label><textarea id="defectDescription" required rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white" placeholder="කෙටි විස්තරයක් හෝ Voice Typing"></textarea><div class="flex flex-wrap gap-2 mt-2"><button type="button" onclick="setDefectDescription('Batch එකේ shade වෙනසක් දක්නට ලැබුණා.')" class="bg-slate-800 px-3 py-2 rounded-lg text-xs">Shade වෙනසක්</button><button type="button" onclick="setDefectDescription('රෙදි මත stain / spot දක්නට ලැබුණා.')" class="bg-slate-800 px-3 py-2 rounded-lg text-xs">Stain / Spot</button><button type="button" onclick="setDefectDescription('QC පරීක්ෂාවේදී ගැටලුව හඳුනාගත්තා.')" class="bg-slate-800 px-3 py-2 rounded-lg text-xs">QC හඳුනාගත්තා</button><button type="button" onclick="startVoiceInput('defectDescription')" class="bg-violet-700 px-3 py-2 rounded-lg text-xs"><i class="fa-solid fa-microphone mr-1"></i> කතා කරලා ලියන්න</button></div></div>
                     <div class="md:col-span-2"><label class="block text-xs text-slate-300 mb-1">ගත් ක්‍රියාමාර්ග / විසඳුම</label><textarea id="defectAction" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white" placeholder="කළ නිවැරදි කිරීම සහ ප්‍රතිඵලය"></textarea><div class="flex flex-wrap gap-2 mt-2"><button type="button" onclick="setDefectAction('Reprocess සඳහා යොමු කළා.')" class="bg-slate-800 px-3 py-2 rounded-lg text-xs">Reprocess</button><button type="button" onclick="setDefectAction('QC පරීක්ෂාවට යොමු කළා.')" class="bg-slate-800 px-3 py-2 rounded-lg text-xs">QC Check</button><button type="button" onclick="setDefectAction('ගැටලුව විසඳා නැවත පරීක්ෂා කළා. OK.')" class="bg-slate-800 px-3 py-2 rounded-lg text-xs">Resolved / OK</button><button type="button" onclick="startVoiceInput('defectAction')" class="bg-violet-700 px-3 py-2 rounded-lg text-xs"><i class="fa-solid fa-microphone mr-1"></i> කතා කරලා ලියන්න</button></div></div>
@@ -381,6 +391,10 @@
         const ADMIN_UID = "nJes2xbzQHSh4YbkzSsgdJJZT3e2"; // bootstrap owner account
         let db = { batches: {}, files: [] };
         let commentsByBatch = {};
+        let allCommentsRoot = {};
+        let commentsWithoutBatch = {};
+        let allCommentsRootListener = null;
+        let noBatchCommentsListener = null;
         let activeBatchNo = null;
         let currentRole = null;
         let dataListener = null;
@@ -416,6 +430,18 @@
                         if (activeBatchNo && db.batches[activeBatchNo]) handleSearchInput(activeBatchNo, true);
                     };
                     database.ref('garment_pro_db_v3_final').on('value', dataListener);
+                    if (allCommentsRootListener) database.ref('garment_pro_comments').off('value', allCommentsRootListener);
+                    allCommentsRootListener = (snapshot) => {
+                        allCommentsRoot = snapshot.val() || {};
+                        commentsByBatch = { ...allCommentsRoot };
+                        renderAllComments();
+                        updateIssueCountBadge();
+                        if (activeBatchNo) renderComments();
+                    };
+                    database.ref('garment_pro_comments').on('value', allCommentsRootListener);
+                    if (noBatchCommentsListener) database.ref('garment_pro_comments_no_batch').off('value', noBatchCommentsListener);
+                    noBatchCommentsListener = (snapshot) => { commentsWithoutBatch = snapshot.val() || {}; renderAllComments(); };
+                    database.ref('garment_pro_comments_no_batch').on('value', noBatchCommentsListener);
                     if (defectsListener) database.ref('garment_pro_defects').off('value', defectsListener);
                     defectsListener = (snapshot) => { defectRecords = snapshot.val() || {}; renderDefectRecords(); };
                     database.ref('garment_pro_defects').on('value', defectsListener);
@@ -709,44 +735,89 @@
             const otherIssue = document.getElementById('commentOtherIssue').value.trim();
             const issue = issueChoice === 'Other' ? otherIssue : issueChoice;
             const txt = input.value.trim();
-            if (!activeBatchNo || !auth.currentUser) return alert('පළමුව Batch එකක් Search කර විවෘත කරන්න.');
-            if (currentRole !== 'admin' && currentRole !== 'staff') return alert('Login required.');
-            if (!area || !category4M || !personName || !epfNo || !issue || !txt) return alert('Area, 4M වර්ගය, නම, EPF අංකය, Issue සහ Comment සියල්ල පුරවන්න.');
+            const batchInput = document.getElementById('commentBatchNumbers').value.trim();
+            if (!auth.currentUser) return alert('කරුණාකර Login වන්න.');
+            if (currentRole !== 'admin' && currentRole !== 'staff') return alert('මෙම ක්‍රියාවට අවසර නැහැ.');
+            if (!personName || !epfNo || !txt) return alert('Comment එක, නම සහ EPF අංකය අනිවාර්යයි.');
+            if (issueChoice === 'Other' && !otherIssue) return alert('වෙනත් Issue එකේ නම ඇතුළත් කරන්න.');
+
+            const batchNumbers = [...new Set(batchInput.split(/[\s,;]+/).map(v => v.trim()).filter(Boolean))];
             const entry = {
-                tag: issue,
-                area: area,
-                category4M: category4M,
-                issue: issue,
-                personName: personName,
-                epfNo: epfNo,
-                text: txt,
-                time: new Date().toLocaleString(),
-                author: auth.currentUser.email || auth.currentUser.uid
+                tag: issue || 'General Update', area: area || '', category4M: category4M || '', issue: issue || '',
+                personName, epfNo, text: txt, time: new Date().toLocaleString(),
+                author: auth.currentUser.email || auth.currentUser.uid, createdAt: Date.now()
             };
             try {
-                await database.ref('garment_pro_comments/' + activeBatchNo).push(entry);
+                if (batchNumbers.length) {
+                    const updates = {};
+                    batchNumbers.forEach(batchNo => {
+                        if (/[.#$\[\]]/.test(batchNo)) throw new Error('Batch Number එකේ Firebase භාවිතයට නොගැළපෙන අක්ෂර තිබේ: ' + batchNo);
+                        const id = database.ref('garment_pro_comments/' + batchNo).push().key;
+                        updates['garment_pro_comments/' + batchNo + '/' + id] = { ...entry, batchNo };
+                    });
+                    await database.ref().update(updates);
+                } else {
+                    await database.ref('garment_pro_comments_no_batch').push({ ...entry, batchNo: '' });
+                }
                 input.value = '';
+                document.getElementById('commentBatchNumbers').value = '';
                 document.getElementById('commentIssueSelect').value = '';
                 document.getElementById('commentOtherIssue').value = '';
                 toggleOtherCommentIssue();
-                updateIssueCountBadge();
-                renderComments();
-                alert('Comment එක සුරැකුවා.');
-            } catch (e) { alert('Comment save failed: ' + e.message); }
+                renderAllComments();
+                alert(batchNumbers.length ? 'එකම Comment එක Batch ' + batchNumbers.length + 'කට සාර්ථකව සුරැකුවා.' : 'Batch Number එකක් නොමැති Comment එක සාර්ථකව සුරැකුවා.');
+            } catch (e) { alert('Comment save failed: ' + (e.message || e)); }
         }
 
         function renderComments() {
-            if (!activeBatchNo || !db.batches[activeBatchNo]) return;
             const container = document.getElementById('commentsTimeline');
-            const comments = Object.entries(commentsByBatch[activeBatchNo] || {}).map(([id, c], index) => ({ id, ...c, no: index + 1 }));
-            if (comments.length === 0) { container.innerHTML = `<p class="text-xs text-slate-500 italic">Comments නොමැත.</p>`; return; }
+            if (!container) return;
+            if (!activeBatchNo) { container.innerHTML = '<p class="text-xs text-slate-500 italic">Batch එකක් තෝරා නැහැ. පහළින් සියලුම Comments බලන්න.</p>'; return; }
+            const list = commentsByBatch[activeBatchNo] || {};
+            const comments = Object.entries(list).map(([id, c], index) => ({ id, ...c, no: index + 1 }));
+            if (comments.length === 0) { container.innerHTML = `<p class="text-xs text-slate-500 italic">මෙම Batch එකට Comments නොමැත.</p>`; return; }
             container.innerHTML = comments.map(c => `
                 <div class="p-3 bg-slate-900/90 border border-slate-800 rounded-xl text-xs space-y-1">
                     <div class="flex justify-between items-center font-bold"><div class="flex items-center gap-2 flex-wrap"><span class="text-blue-400">Comment #${c.no}</span><span class="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded text-[10px]">${escapeHtml(c.area || '')}</span><span class="bg-violet-500/20 text-violet-300 px-2 py-0.5 rounded text-[10px]">${escapeHtml(c.category4M || '')}</span><span class="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded text-[10px]">${escapeHtml(c.issue || c.tag || '')}</span></div><span class="text-[10px] font-normal text-slate-500">${escapeHtml(c.time || '')}</span></div>
                     <p class="text-slate-200">${escapeHtml(c.text || '')}</p><p class="text-[10px] text-slate-400">${escapeHtml(c.personName || c.author || '')}${c.epfNo ? ' · EPF: ' + escapeHtml(c.epfNo) : ''}</p>
+                    ${currentRole === 'admin' ? `<button type="button" onclick="deleteComment('${escapeHtml(activeBatchNo)}','${escapeHtml(c.id)}',false)" class="mt-1 bg-rose-900/50 hover:bg-rose-800 text-rose-200 px-2.5 py-1.5 rounded-lg text-[10px] font-bold">Delete Comment</button>` : ''}
                 </div>`).reverse().join('');
         }
-        function escapeHtml(value) { return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+
+        function collectAllComments() {
+            const rows = [];
+            Object.entries(allCommentsRoot || {}).forEach(([batchNo, list]) => {
+                Object.entries(list || {}).forEach(([id, c]) => rows.push({ ...c, id, batchNo: c.batchNo || batchNo, noBatch: false }));
+            });
+            Object.entries(commentsWithoutBatch || {}).forEach(([id, c]) => rows.push({ ...c, id, batchNo: '', noBatch: true }));
+            return rows.sort((a,b) => (Number(b.createdAt)||0) - (Number(a.createdAt)||0));
+        }
+
+        function renderAllComments() {
+            const container = document.getElementById('allCommentsTimeline');
+            if (!container) return;
+            const query = (document.getElementById('allCommentsSearch')?.value || '').trim().toLowerCase();
+            const comments = collectAllComments().filter(c => !query || [c.batchNo,c.personName,c.epfNo,c.text,c.issue,c.tag,c.area].some(v => String(v || '').toLowerCase().includes(query)));
+            if (!comments.length) { container.innerHTML = '<p class="text-xs text-slate-500 italic">ගැළපෙන Comments නොමැත.</p>'; return; }
+            container.innerHTML = comments.map(c => `
+                <div class="p-3 bg-slate-900/90 border border-slate-800 rounded-xl text-xs space-y-1">
+                    <div class="flex flex-wrap justify-between gap-2"><div class="flex flex-wrap items-center gap-2"><span class="text-blue-300 font-bold">${c.batchNo ? 'Batch: ' + escapeHtml(c.batchNo) : 'Batch Number නැහැ'}</span><span class="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded text-[10px]">${escapeHtml(c.area || 'Area නැහැ')}</span><span class="bg-violet-500/20 text-violet-300 px-2 py-0.5 rounded text-[10px]">${escapeHtml(c.category4M || '4M නැහැ')}</span><span class="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded text-[10px]">${escapeHtml(c.issue || c.tag || 'Issue නැහැ')}</span></div><span class="text-[10px] text-slate-500">${escapeHtml(c.time || '')}</span></div>
+                    <p class="text-slate-100">${escapeHtml(c.text || '')}</p><p class="text-[10px] text-slate-400">${escapeHtml(c.personName || '')}${c.epfNo ? ' · EPF: ' + escapeHtml(c.epfNo) : ''}</p>
+                    ${currentRole === 'admin' ? `<button type="button" onclick="deleteComment('${escapeHtml(c.batchNo || '')}','${escapeHtml(c.id)}',${c.noBatch ? 'true' : 'false'})" class="mt-1 bg-rose-900/50 hover:bg-rose-800 text-rose-200 px-2.5 py-1.5 rounded-lg text-[10px] font-bold">Delete Comment</button>` : ''}
+                </div>`).join('');
+        }
+
+        async function deleteComment(batchNo, commentId, noBatch) {
+            if (currentRole !== 'admin') return alert('Comment මකා දැමිය හැක්කේ Adminට පමණයි.');
+            if (!commentId || !confirm('මෙම Comment එක ස්ථිරව මකා දැමීමට අවශ්‍යද?')) return;
+            try {
+                const path = noBatch ? 'garment_pro_comments_no_batch/' + commentId : 'garment_pro_comments/' + batchNo + '/' + commentId;
+                await database.ref(path).remove();
+                alert('Comment එක මකා දැමුවා.');
+            } catch (e) { alert('Comment delete කළ නොහැක: ' + (e.message || e)); }
+        }
+
+                function escapeHtml(value) { return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 
         function updateIssueCountBadge() {
             let issueCount = 0;
